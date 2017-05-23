@@ -371,6 +371,10 @@ int main(int argc, char *argv[])
     int desc_access = 0;
     uint16_t altp2m_view_id = 0;
 
+    /*BA part*/
+    int singlestep = 0;
+
+
     char* progname = argv[0];
     argv++;
     argc--;
@@ -439,6 +443,14 @@ int main(int argc, char *argv[])
     {
         desc_access = 1;
     }
+    else if ( !strcmp(argv[0], "singlestep") )
+    {
+        /*BA part*/
+        singlestep = 1;
+    }
+
+
+
 #elif defined(__arm__) || defined(__aarch64__)
     else if ( !strcmp(argv[0], "privcall") )
     {
@@ -476,6 +488,21 @@ int main(int argc, char *argv[])
         ERROR("Error %d setting mem_access listener required\n", rc);
         goto exit;
     }
+
+    /*BA part*/
+    if ( singlestep )
+    {
+        DPRINTF("Testing Singlestep\n");
+
+        rc = xc_monitor_singlestep( xch, domain_id, 1 );
+        if ( rc < 0 )
+        {
+            ERROR("Error %d failed to enable singlestep monitoring!\n", rc);
+            goto exit;
+        }
+        DPRINTF("SingleStep succesfull rc=%d\n", lu);
+    }
+
 
     /* With altp2m we just create a new, restricted view of the memory */
     if ( memaccess && altp2m )

@@ -45,6 +45,10 @@ int arch_monitor_domctl_event(struct domain *d,
         break;
     }
 
+    case XEN_DOMCTL_MONITOR_EVENT_SINGLESTEP:
+        DPRINTF(KERN_INFO "Found SingleStep Request on ARM\n");
+        /*Fallthrough, bc. test print*/
+
     default:
         /*
          * Should not be reached unless arch_monitor_get_capabilities() is
