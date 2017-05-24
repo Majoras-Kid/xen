@@ -414,6 +414,11 @@ int main(int argc, char *argv[])
         after_first_access = XENMEM_access_rwx;
         memaccess = 1;
     }
+    else if ( !strcmp(argv[0], "singlestep") )
+    {
+        /*BA part*/
+        singlestep = 1;
+    }
 #if defined(__i386__) || defined(__x86_64__)
     else if ( !strcmp(argv[0], "breakpoint") )
     {
@@ -443,11 +448,7 @@ int main(int argc, char *argv[])
     {
         desc_access = 1;
     }
-    else if ( !strcmp(argv[0], "singlestep") )
-    {
-        /*BA part*/
-        singlestep = 1;
-    }
+    
 
 
 
