@@ -500,7 +500,7 @@ int main(int argc, char *argv[])
             ERROR("Error %d failed to enable singlestep monitoring!\n", rc);
             goto exit;
         }
-        DPRINTF("SingleStep succesfull rc=%d\n", lu);
+        DPRINTF("SingleStep succesfull rc=%d\n", rc);
     }
 
 
