@@ -50,8 +50,66 @@ int arch_monitor_domctl_event(struct domain *d,
     case XEN_DOMCTL_MONITOR_EVENT_SINGLESTEP:
        gprintk(XENLOG_GUEST,"Found SingleStep Request on ARM\n");
        //Route Exceptions to Hypervisor
+       //Set: HDCR_{TDE} + init_traps()
+       init_traps();
+       WRITE_SYSREG(HDCR_TDE, MDCR_EL2);
 
-       return 0;
+       gprintk(XENLOG_GUEST, "Setup HypTrap Route done\n");
+       gprintk(XENLOG_GUEST, "Reading DBGBCR0: %d\n", READ_SYSREG(DBGBCR0));
+       gprintk(XENLOG_GUEST, "Reading DBGBCR1: %d\n", READ_SYSREG(DBGBCR1));
+       gprintk(XENLOG_GUEST, "Reading DBGBVR:  %d\n", READ_SYSREG(DBGBVR1));
+       
+       //WRITE_SYSREG(READ_SYSREG(DBGBCR0)| 1, DBGBCR0);
+      // WRITE_SYSREG(READ_SYSREG(DBGBCR1)| 1, DBGBCR1);
+
+       
+       //Set Debug to Linked Addres
+       // See AARM C3.3.7 Linked comparisons for [...]
+      
+  
+       //DBGBCR0 == Linked VMID match: 0b1001
+       // TODO: Check if same SSC, HCM, PMC as Addres Mismatch?
+       // Res  mask   BT    LBN    SSC  HCM  SBZP   BAS    RES  PMC  E
+       // 000  00000  1001  0001   01   0    0000   0000   00   11   1
+       //mask = 158613142241329;
+        WRITE_SYSREG(0b100100010100000000000111, DBGBCR0);
+
+       //DBGBXVR: VMID
+       // Reserved                 VMID
+       // 000000000000000000000000 00000000
+        
+        //TODO: Write VMID to DBGBXVR Register. Maybe with ASM?
+        //WRITE_SYSREG32(1, DBGBXVR);
+
+
+
+
+       //DBGBCR1 == Unliked Address Mismatch: 0b0100 (linked: 0b0101)
+       //PCM: Bit 1,0   -> Value=0b11 -> PL0/PL1 only
+       //HCM: Bit 13    -> Value=0b00 -> No HypMode Trap
+       //SSC: Bit 14/15 -> Value 0b01 -> NonSecure only
+
+       // Res  mask   BT    LBN    SSC  HCM  SBZP   BAS    RES  PMC  E
+       // 000  00000  0100  0000   01   0    0000   0000   00   11   1
+        WRITE_SYSREG(0b010000000100000000000111, DBGBCR1);
+
+
+       //BVR: Breakpoint value register
+       // TODO: 1³² or 0³² as BVR1 Address?
+       // Instruction Address            Res
+       // 000000000000000000000000000000 00
+        WRITE_SYSREG(0, DBGBVR1);
+
+
+      
+
+       gprintk(XENLOG_GUEST, "Reading DBGBCR0: %db\n", READ_SYSREG(DBGBCR0));
+       gprintk(XENLOG_GUEST, "Reading DBGBCR1: %db\n", READ_SYSREG(DBGBCR1));
+       gprintk(XENLOG_GUEST, "Reading DBGBVR:  %db\n", READ_SYSREG(DBGBVR1));
+       
+
+       ASSERT_UNREACHABLE();
+       return -EOPNOTSUPP;
         /*Fallthrough, bc. test print*/
 
     default:
