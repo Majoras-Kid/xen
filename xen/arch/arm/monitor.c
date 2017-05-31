@@ -30,6 +30,8 @@ int arch_monitor_domctl_event(struct domain *d,
     struct arch_domain *ad = &d->arch;
     bool_t requested_status = (XEN_DOMCTL_MONITOR_OP_ENABLE == mop->op);
 
+    gprintk(XENLOG_GUEST,"in arch_monitor_domctl_event with ");
+
     switch ( mop->event )
     {
     case XEN_DOMCTL_MONITOR_EVENT_PRIVILEGED_CALL:
@@ -46,7 +48,10 @@ int arch_monitor_domctl_event(struct domain *d,
     }
 
     case XEN_DOMCTL_MONITOR_EVENT_SINGLESTEP:
-       gdprintk(XENLOG_DEBUG,"Found SingleStep Request on ARM\n");
+       gprintk(XENLOG_GUEST,"Found SingleStep Request on ARM\n");
+       //Route Exceptions to Hypervisor
+
+       return 0;
         /*Fallthrough, bc. test print*/
 
     default:

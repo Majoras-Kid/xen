@@ -32,6 +32,8 @@ int monitor_domctl(struct domain *d, struct xen_domctl_monitor_op *mop)
 {
     int rc;
     bool_t requested_status = 0;
+    gprintk(XENLOG_GUEST,"In: xc_monitor with monitor_domctl\n");
+    
 
     if ( unlikely(current->domain == d) ) /* no domain_pause() */
         return -EPERM;
@@ -44,27 +46,47 @@ int monitor_domctl(struct domain *d, struct xen_domctl_monitor_op *mop)
     {
     case XEN_DOMCTL_MONITOR_OP_ENABLE:
         requested_status = 1;
+
         /* fallthrough */
     case XEN_DOMCTL_MONITOR_OP_DISABLE:
+    {
+
+
         /* sanity check: avoid left-shift undefined behavior */
         if ( unlikely(mop->event > 31) )
+        {
+            gprintk(XENLOG_GUEST," unlikely(mop->event)");
             return -EINVAL;
+        }
+        
         /* Check if event type is available. */
+        if(mop->event == XEN_DOMCTL_MONITOR_EVENT_SINGLESTEP)
+        {
+            gprintk(XENLOG_GUEST, "Vor eigenem Break\n");
+            break;
+        }
         if ( unlikely(!(arch_monitor_get_capabilities(d) & (1U << mop->event))) )
+        {
+            gprintk(XENLOG_GUEST, "In arch_monitor_get_capabilities\n");
             return -EOPNOTSUPP;
+        }
+        gprintk(XENLOG_GUEST, "Vor Break\n");
         break;
-
+    }
     case XEN_DOMCTL_MONITOR_OP_GET_CAPABILITIES:
         mop->event = arch_monitor_get_capabilities(d);
         return 0;
 
     default:
         /* The monitor op is probably handled on the arch-side. */
+        gprintk(XENLOG_GUEST, "Default domOP");
         return arch_monitor_domctl_op(d, mop);
     }
 
+    gprintk(XENLOG_GUEST, "vor switch");
     switch ( mop->event )
     {
+        gprintk(XENLOG_GUEST, "In Switch mop->event");
     case XEN_DOMCTL_MONITOR_EVENT_GUEST_REQUEST:
     {
         bool_t old_status = d->monitor.guest_request_enabled;
@@ -81,6 +103,9 @@ int monitor_domctl(struct domain *d, struct xen_domctl_monitor_op *mop)
 
     default:
         /* Give arch-side the chance to handle this event */
+        gprintk(XENLOG_GUEST,"In: xen/common/monitor.c with default\n");
+    
+
         return arch_monitor_domctl_event(d, mop);
     }
 
