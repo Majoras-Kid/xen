@@ -53,12 +53,13 @@ die:
 asmlinkage void do_trap_hypervisor_call(struct cpu_user_regs *regs)
 {
    // gprintk(XENLOG_GUEST, "[SingleStep] Got do_trap_hypervisor_call\n");
-    printk("[SingleStep] Got do_trap_hypervisor_call\n");
+     printk(KERN_ERR "[SingleStep] Got do_trap_hypervisor_call\n");
     do_unexpected_trap("Hypervisor Call", regs);
 }
 
 asmlinkage void do_trap_prefetch_abort(struct cpu_user_regs *regs)
 {
+    printk(KERN_ERR "[SingleStep] Got do_trap_prefetch_abort\n");
     do_unexpected_trap("Prefetch Abort", regs);
 }
 

@@ -1137,7 +1137,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
     }
 
     case XEN_DOMCTL_monitor_op:
-        gprintk(XENLOG_GUEST, "In: domctl switch _monitor_op\n");
+       // gprintk(XENLOG_GUEST, "In: domctl switch _monitor_op\n");
     
         ret = monitor_domctl(d, &op->u.monitor_op);
         if ( !ret )

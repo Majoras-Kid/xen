@@ -28,9 +28,8 @@ int arch_monitor_domctl_event(struct domain *d,
                               struct xen_domctl_monitor_op *mop)
 {
     struct arch_domain *ad = &d->arch;
+    int i =0;
     bool_t requested_status = (XEN_DOMCTL_MONITOR_OP_ENABLE == mop->op);
-
-    gprintk(XENLOG_GUEST,"in arch_monitor_domctl_event with ");
 
     switch ( mop->event )
     {
@@ -48,68 +47,95 @@ int arch_monitor_domctl_event(struct domain *d,
     }
 
     case XEN_DOMCTL_MONITOR_EVENT_SINGLESTEP:
-       gprintk(XENLOG_GUEST,"Found SingleStep Request on ARM\n");
-       //Route Exceptions to Hypervisor
-       //Set: HDCR_{TDE} + init_traps()
-       init_traps();
-       WRITE_SYSREG(HDCR_TDE, MDCR_EL2);
+    {
+        //Set Debug to Linked Addres
+        //See AARM C3.3.7 Linked comparisons for [...]
+        
+        //Example on ARM ARM 2051
 
-       gprintk(XENLOG_GUEST, "Setup HypTrap Route done\n");
-       gprintk(XENLOG_GUEST, "[Before] Reading DBGBCR0: %d\n", READ_SYSREG(DBGBCR0));
-       gprintk(XENLOG_GUEST, "[Before] Reading DBGBCR1: %d\n", READ_SYSREG(DBGBCR1));
-       gprintk(XENLOG_GUEST, "[Before] Reading DBGBVR:  %d\n", READ_SYSREG(DBGBVR1));
-       
-       //WRITE_SYSREG(READ_SYSREG(DBGBCR0)| 1, DBGBCR0);
-      // WRITE_SYSREG(READ_SYSREG(DBGBCR1)| 1, DBGBCR1);
-
-       //TODO Set DBGBCR Value with WRITE_SYSREG. BUT Bitmask is to large ->Bit Shift?
-       
-       //Set Debug to Linked Addres
-       // See AARM C3.3.7 Linked comparisons for [...]
-      
-
-        //DBGBCR1 == Unliked Address Mismatch: 0b0100 (linked: 0b0101)
-       //PCM: Bit 1,0   -> Value=0b11 -> PL0/PL1 only
-       //HCM: Bit 13    -> Value=0b00 -> No HypMode Trap
-       //SSC: Bit 14/15 -> Value 0b01 -> NonSecure only
-
-       // Res  mask   BT    LBN    SSC  HCM  SBZP   BAS    RES  PMC  E
-       // 000  00000  0101  0000   01   0    0000   0000   00   11   1
-        WRITE_SYSREG32(READ_SYSREG(DBGBCR0) | 0b111, DBGBCR1);
-        gprintk(XENLOG_GUEST, "[Within] Done setting DBGCR1\n");
-
-       //BVR: Breakpoint value register
-       // TODO: 1³² or 0³² as BVR1 Address?
-       // Instruction Address            Res
-       // 111111111111111111111111111111 00
-        WRITE_SYSREG(0b11111111111111111111111111111100, DBGBVR1);
-        gprintk(XENLOG_GUEST, "[Within] Done setting DBGVR1\n");
+        gprintk(XENLOG_ERR, "Setup HypTrap Route done\n");
+        gprintk(XENLOG_ERR, "[Bevor] Reading DBGBCR2:   0x%x\n", READ_SYSREG( p14,0,c0,c2,5));
+        //gprintk(XENLOG_ERR, "[Bevor] Reading DBGBCR3:   0x%x\n", READ_SYSREG( p14,0,c0,c3,5));
+        gprintk(XENLOG_ERR, "[Before] Reading DBGBVR:   0x%x\n", READ_SYSREG( p14,0,c0,c2,4));
+        gprintk(XENLOG_ERR, "[Bevor] Reading DBGDSCREXT:0x%x\n", READ_SYSREG(DBGDSCREXT));
+         
+        
+        //Route Exceptions to Hypervisor
+        //Set: HDCR_{TDE} + init_traps()
+        WRITE_SYSREG((vaddr_t)hyp_traps_vector, VBAR_EL2);
+        WRITE_SYSREG(HDCR_TDRA|HDCR_TDOSA|HDCR_TDA|HDCR_TDE, MDCR_EL2);
 
 
-       //DBGBCR0 == Linked VMID match: 0b1001
-       // TODO: Check if same SSC, HCM, PMC as Addres Mismatch?
-       // Res  mask   BT    LBN    SSC  HCM  SBZP   BAS    RES  PMC  E
-       // 000  00000  1001  0001   01   0    0000   0000   00   11   1
-       //mask = 158613142241329;
-        WRITE_SYSREG(0b100100010100000000000111, DBGBCR0);
+        //DBGBCR2 =  (p14,0,c0,c2,5)== Unliked Address Mismatch: 0b0100==0x404007 
+        //(linked: 0b0101) ->
+        //PCM: Bit 1,2   -> Value=0b10 -> PL0 only
+        //HCM: Bit 13    -> Value=0b00 -> No HypMode Trap
+        //SSC: Bit 14/15 -> Value 0b01 -> NonSecure only
+        //BAS: ARM + Address + BAS=0b0000 -> Mismatch Hit (2047)
+        //Prefetch Abort Eception -> Anhand von (2037)
+        //Mask und ByteAddressSelect nicht gesetzt
+        // Res  mask   BT    LBN    SSC  HCM  SBZP   BAS    RES  PMC  E
+        // 000  00000  0101  0011   01   0    0000   0000   00   11   1 = 0x534007 
+        // 000  00000  0100  0000   01   0    0000   0000   00   11   1 = 0x404007
+        //Linked or unlinked instruction address mismatch Breakpoint debug events that are configured to be generated
+        //at PL1. -> Seite 2045
+        WRITE_SYSREG(0x404007,  p14,0,c0,c2,5);
+           
 
-        gprintk(XENLOG_GUEST, "[Within] Done setting DBGCR0\n");
-       
+        //BVR: Breakpoint value register
+        // TODO: 1³² or 0³² as BVR1 Address?
+        // Instruction Address            Res
+        // 000000000000000000000000000000 00
+        //DBGBVR0 = p14,0,c0,c2,4
+        WRITE_SYSREG(0,p14,0,c0,c2,4 );
 
-        //DBGBXVR: VMID
+
+        /*
+        //Not implemented yet, bc. Linking not working
+        //DBGBCR3 =  (p14,0,c0,c3,5) == Linked VMID match: 0b1001
+        // TODO: Check if same SSC, HCM, PMC as Addres Mismatch?
+        // Res  mask   BT    LBN    SSC  HCM  SBZP   BAS    RES  PMC  E
+        //neue Maske
+        // 000  00000  1010  0000   00   0    0000   1111   00   11   1 = 0xA001E7
+        */
+        //WRITE_SYSREG(0xA001E7, p14,0,c0,c3,5);
+         
+
+        //DBGBXVR = p14,0,c1,c3,1 = : VMID
         // Reserved                 VMID
-        // 000000000000000000000000 00000000
-        //TODO: Write VMID to DBGBXVR Register. Maybe with ASM?
-        //WRITE_SYSREG32(1, DBGBXVR0);
+        // 000000000000000000000000 00000001
+        //WRITE_SYSREG(1, p14,0,c1,c3,1); 
+       
 
-       gprintk(XENLOG_GUEST, "[After] Reading DBGBCR0: %d\n", READ_SYSREG(DBGBCR0));
-       gprintk(XENLOG_GUEST, "[After] Reading DBGBCR1: %d\n", READ_SYSREG(DBGBCR1));
-       gprintk(XENLOG_GUEST, "[After] Reading DBGBVR:  %d\n", READ_SYSREG(DBGBVR1));
+        //DBGDSCR = Enable Invasive Debug + Monitor Mode
+        //Access 2251
+        //TODO Authentication signals not correct
+        //MDBGen[15] = 1
+        //MOE[5:2] = 0b0001
+        //DBGack[10] = 1 DebugAcknowledge -> forced BP to give signal (Read as UNpredigtable)
+        //0000 0000 0000 0000 0100 0100 00 0001 00 = 0x4004 (mit DBGACK=0x4404) 
+        //     0010 0000 0100 0100 0000 00 0001 10
+        //PipeADV[25] = Piping instruction (READONLY)
+        //NS[18]: CPU in Non-Secure (READONLY)  
+        //RESTARTED[1]: CPU exited Debug state (READONLY)    READ_AS_ONE 
+        WRITE_SYSREG(0x4404,DBGDSCREXT);
 
-       ASSERT_UNREACHABLE();
-       return -EOPNOTSUPP;
-        /*Fallthrough, bc. test print*/
 
+        for (i = 0; i < 10000000; ++i)
+        {
+            /* just for delay */
+        }
+
+        gprintk(XENLOG_ERR, "[After] Reading HDCR:      0x%x\n", READ_SYSREG( MDCR_EL2));
+        gprintk(XENLOG_ERR, "[After] Reading DBGBCR2:   0x%x\n", READ_SYSREG( p14,0,c0,c2,5));
+        //gprintk(XENLOG_ERR, "[After] Reading DBGBCR3:   0x%x\n", READ_SYSREG( p14,0,c0,c3,5));
+        gprintk(XENLOG_ERR, "[After] Reading DBGDSCREXT:0x%x\n", READ_SYSREG(DBGDSCREXT));
+        
+        //gprintk(XENLOG_GUEST, "[After] Reading DBGBXVR: 0x%x\n", READ_SYSREG( p14,0,c1,c3,1));
+
+         return 0;
+          /*Fallthrough, bc. test print*/
+    }
     default:
         /*
          * Should not be reached unless arch_monitor_get_capabilities() is

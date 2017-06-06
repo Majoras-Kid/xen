@@ -1247,6 +1247,7 @@ void vcpu_show_execution_state(struct vcpu *v)
 
 void do_unexpected_trap(const char *msg, struct cpu_user_regs *regs)
 {
+    gprintk(XENLOG_ERR, "In do_unexpected_trap\n");
     printk("CPU%d: Unexpected Trap: %s\n", smp_processor_id(), msg);
     show_execution_state(regs);
     panic("CPU%d: Unexpected Trap: %s\n", smp_processor_id(), msg);
@@ -1335,6 +1336,7 @@ static void do_trap_brk(struct cpu_user_regs *regs, const union hsr hsr)
     /* HCR_EL2.TGE and MDCR_EL2.TDE are not set so we never receive
      * software breakpoint exception for EL1 and EL0 here.
      */
+
     BUG_ON(!hyp_mode(regs));
 
     switch (hsr.brk.comment)
@@ -1589,6 +1591,7 @@ static void do_trap_hypercall(struct cpu_user_regs *regs, register_t *nr,
 {
     arm_hypercall_fn_t call = NULL;
 
+   
     BUILD_BUG_ON(NR_hypercalls < ARRAY_SIZE(arm_hypercall_table) );
 
     if ( iss != XEN_HYPERCALL_TAG )
@@ -2061,9 +2064,12 @@ static void do_cp15_64(struct cpu_user_regs *regs,
 
 static void do_cp14_32(struct cpu_user_regs *regs, const union hsr hsr)
 {
+    
     const struct hsr_cp32 cp32 = hsr.cp32;
     int regidx = cp32.reg;
     struct domain *d = current->domain;
+
+    gprintk(XENLOG_ERR, "In traps.c with do_cp14_32\n");
 
     if ( !check_conditional_instr(regs, hsr) )
     {
@@ -2808,7 +2814,6 @@ static void enter_hypervisor_head(struct cpu_user_regs *regs)
 asmlinkage void do_trap_guest_sync(struct cpu_user_regs *regs)
 {
     const union hsr hsr = { .bits = regs->hsr };
-
     enter_hypervisor_head(regs);
 
     switch (hsr.ec) {

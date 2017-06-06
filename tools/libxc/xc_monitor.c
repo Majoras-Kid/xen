@@ -120,6 +120,9 @@ int xc_monitor_singlestep(xc_interface *xch, domid_t domain_id,
 {
     DECLARE_DOMCTL;
 
+    printf( "In: xc_monitor with xc_monitor_singlestep\n");
+
+
     domctl.cmd = XEN_DOMCTL_monitor_op;
     domctl.domain = domain_id;
     domctl.u.monitor_op.op = enable ? XEN_DOMCTL_MONITOR_OP_ENABLE
