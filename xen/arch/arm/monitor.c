@@ -54,21 +54,21 @@ int arch_monitor_domctl_event(struct domain *d,
         //Example on ARM ARM 2051
 
         gprintk(XENLOG_ERR, "Setup HypTrap Route done\n");
-        gprintk(XENLOG_ERR, "[Bevor] Reading DBGBCR2:   0x%x\n", READ_SYSREG( p14,0,c0,c2,5));
-        //gprintk(XENLOG_ERR, "[Bevor] Reading DBGBCR3:   0x%x\n", READ_SYSREG( p14,0,c0,c3,5));
-        gprintk(XENLOG_ERR, "[Before] Reading DBGBVR:   0x%x\n", READ_SYSREG( p14,0,c0,c2,4));
-        gprintk(XENLOG_ERR, "[Bevor] Reading DBGDSCREXT:0x%x\n", READ_SYSREG(DBGDSCREXT));
+        gprintk(XENLOG_ERR, "[Before] Reading DBGBCR2:   0x%x\n", READ_SYSREG( p14,0,c0,c2,5));
+        //gprintk(XENLOG_ERR, "[Before] Reading DBGBCR3:   0x%x\n", READ_SYSREG( p14,0,c0,c3,5));
+        gprintk(XENLOG_ERR, "[Before] Reading DBGBVR:    0x%x\n", READ_SYSREG( p14,0,c0,c2,4));
+        gprintk(XENLOG_ERR, "[Before] Reading DBGDSCREXT:0x%x\n", READ_SYSREG(DBGDSCREXT));
          
         
         //Route Exceptions to Hypervisor
         //Set: HDCR_{TDE} + init_traps()
-        WRITE_SYSREG((vaddr_t)hyp_traps_vector, VBAR_EL2);
-        WRITE_SYSREG(HDCR_TDRA|HDCR_TDOSA|HDCR_TDA|HDCR_TDE, MDCR_EL2);
+       // WRITE_SYSREG((vaddr_t)hyp_traps_vector, VBAR_EL2);
+        WRITE_SYSREG(READ_SYSREG(MDCR_EL2) | HDCR_TDRA|HDCR_TDOSA|HDCR_TDA|HDCR_TDE, MDCR_EL2);
 
 
         //DBGBCR2 =  (p14,0,c0,c2,5)== Unliked Address Mismatch: 0b0100==0x404007 
         //(linked: 0b0101) ->
-        //PCM: Bit 1,2   -> Value=0b10 -> PL0 only
+        //PCM: Bit 1,2   -> Value=0b11 -> PL0/PL1
         //HCM: Bit 13    -> Value=0b00 -> No HypMode Trap
         //SSC: Bit 14/15 -> Value 0b01 -> NonSecure only
         //BAS: ARM + Address + BAS=0b0000 -> Mismatch Hit (2047)
@@ -77,8 +77,6 @@ int arch_monitor_domctl_event(struct domain *d,
         // Res  mask   BT    LBN    SSC  HCM  SBZP   BAS    RES  PMC  E
         // 000  00000  0101  0011   01   0    0000   0000   00   11   1 = 0x534007 
         // 000  00000  0100  0000   01   0    0000   0000   00   11   1 = 0x404007
-        //Linked or unlinked instruction address mismatch Breakpoint debug events that are configured to be generated
-        //at PL1. -> Seite 2045
         WRITE_SYSREG(0x404007,  p14,0,c0,c2,5);
            
 
@@ -86,8 +84,9 @@ int arch_monitor_domctl_event(struct domain *d,
         // TODO: 1³² or 0³² as BVR1 Address?
         // Instruction Address            Res
         // 000000000000000000000000000000 00
+        //trying 20 as address
         //DBGBVR0 = p14,0,c0,c2,4
-        WRITE_SYSREG(0,p14,0,c0,c2,4 );
+        WRITE_SYSREG(0xB,p14,0,c0,c2,4 );
 
 
         /*
@@ -129,6 +128,7 @@ int arch_monitor_domctl_event(struct domain *d,
         gprintk(XENLOG_ERR, "[After] Reading HDCR:      0x%x\n", READ_SYSREG( MDCR_EL2));
         gprintk(XENLOG_ERR, "[After] Reading DBGBCR2:   0x%x\n", READ_SYSREG( p14,0,c0,c2,5));
         //gprintk(XENLOG_ERR, "[After] Reading DBGBCR3:   0x%x\n", READ_SYSREG( p14,0,c0,c3,5));
+        gprintk(XENLOG_ERR, "[Before] Reading DBGBVR:    0x%x\n", READ_SYSREG( p14,0,c0,c2,4));
         gprintk(XENLOG_ERR, "[After] Reading DBGDSCREXT:0x%x\n", READ_SYSREG(DBGDSCREXT));
         
         //gprintk(XENLOG_GUEST, "[After] Reading DBGBXVR: 0x%x\n", READ_SYSREG( p14,0,c1,c3,1));

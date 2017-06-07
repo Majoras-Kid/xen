@@ -2708,7 +2708,10 @@ static void do_trap_data_abort_guest(struct cpu_user_regs *regs,
      * by a guest external abort. We treat this data abort as guest SError.
      */
     if ( dabt.eat )
+    {
+        gprintk(XENLOG_ERR, "Data abort by guest external abort in traps.c/do_trap_data_abort_guest\n");
         return __do_trap_serror(regs, true);
+    }
 
     info.dabt = dabt;
 #ifdef CONFIG_ARM_32
