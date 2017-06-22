@@ -59,6 +59,7 @@ asmlinkage void do_trap_hypervisor_call(struct cpu_user_regs *regs)
 
 asmlinkage void do_trap_prefetch_abort(struct cpu_user_regs *regs)
 {
+    WRITE_SYSREG(0b0101010101010,p14,0,c0,c2,4 );
     printk(KERN_ERR "[SingleStep] Got do_trap_prefetch_abort\n");
     do_unexpected_trap("Prefetch Abort", regs);
 }
