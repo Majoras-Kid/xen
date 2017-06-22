@@ -1339,6 +1339,7 @@ static void do_trap_brk(struct cpu_user_regs *regs, const union hsr hsr)
 
     BUG_ON(!hyp_mode(regs));
 
+    gprintk(XENLOG_ERR, "Fount breakpoint in do_trap_brk\n");
     switch (hsr.brk.comment)
     {
     case BRK_BUG_FRAME_IMM:
@@ -2068,8 +2069,6 @@ static void do_cp14_32(struct cpu_user_regs *regs, const union hsr hsr)
     const struct hsr_cp32 cp32 = hsr.cp32;
     int regidx = cp32.reg;
     struct domain *d = current->domain;
-
-    gprintk(XENLOG_ERR, "In traps.c with do_cp14_32\n");
 
     if ( !check_conditional_instr(regs, hsr) )
     {
@@ -2817,8 +2816,24 @@ static void enter_hypervisor_head(struct cpu_user_regs *regs)
 asmlinkage void do_trap_guest_sync(struct cpu_user_regs *regs)
 {
     const union hsr hsr = { .bits = regs->hsr };
+   
     enter_hypervisor_head(regs);
 
+    /*
+    if((READ_SYSREG(DBGDSCREXT) & 0x111100) )
+    {
+        gprintk(XENLOG_ERR, "MOE = %x\n", READ_SYSREG(DBGDSCREXT));
+    }
+    */
+    if(hsr.ec > 0x13 && hsr.ec <0x24)
+    {
+        gprintk(XENLOG_ERR, "HSR.EC = 0x%x\n",  hsr.ec );
+    }
+    
+    if(hsr.ec == 0x20)
+    {
+        gprintk(XENLOG_ERR, "Found routed prefetch abort to hyp mode\n");
+    }
     switch (hsr.ec) {
     case HSR_EC_WFI_WFE:
         /*
@@ -2925,6 +2940,7 @@ asmlinkage void do_trap_guest_sync(struct cpu_user_regs *regs)
 #endif
 
     case HSR_EC_INSTR_ABORT_LOWER_EL:
+        gprintk(XENLOG_ERR, "In case EC = HSR_EC_INSTR_ABORT_LOWER_EL\n");
         perfc_incr(trap_iabt);
         do_trap_instr_abort_guest(regs, hsr);
         break;
