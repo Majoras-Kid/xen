@@ -28,8 +28,8 @@ int arch_monitor_domctl_event(struct domain *d,
                               struct xen_domctl_monitor_op *mop)
 {
     struct arch_domain *ad = &d->arch;
-    struct vcpu *vcpu_temp;
-    int i = 0;
+    //struct vcpu *vcpu_temp;
+    //int i = 0;
 
     bool_t requested_status = (XEN_DOMCTL_MONITOR_OP_ENABLE == mop->op);
 
@@ -63,11 +63,11 @@ int arch_monitor_domctl_event(struct domain *d,
         ad->monitor.singlestep_enabled = requested_status;
         domain_unpause(d);
 
-        for (; i < d->max_vcpus; ++i)
+        /*for (; i < d->max_vcpus; ++i)
         {
-            vcpu_temp = d->vcpu[i];
+            vcpu_temp = *(d->vcpu[i]);
             vcpu_temp->arch.single_step = 1;
-        }
+        }*/
 
 
         //Set Debug to Linked Addres

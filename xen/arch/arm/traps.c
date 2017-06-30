@@ -3028,20 +3028,32 @@ asmlinkage void leave_hypervisor_tail(void)
     Check single_step_enabled flag in domain struct here and set needed registers
 
     */
+    
     struct vcpu *v = current;
 
-    if ( unlikely(v->arch.single_step) )
+    if ( unlikely(v->domain->arch.monitor.singlestep_enabled ) )
     {
+        //setz register falls vcpu ss flag noch nicht aktiv
+        gprintk(XENLOG_ERR, "Testing vcpu=%d for domain=%d\n",v->vcpu_id,v->domain->domain_id);
+        if (!(v->arch.single_step ))
+        {
+            WRITE_SYSREG(READ_SYSREG(MDCR_EL2)| HDCR_TDA|HDCR_TDE, MDCR_EL2);
+            WRITE_SYSREG((READ_SYSREG(SPSR_EL2 )| 0x200000), SPSR_EL2 );
+            WRITE_SYSREG(READ_SYSREG(MDSCR_EL1) | 0x1, MDSCR_EL1);
+
+            gprintk(XENLOG_ERR, "[Toggle_singlestep] MDSCR_EL1     0x%lx\n", READ_SYSREG(MDSCR_EL1));
+            gprintk(XENLOG_ERR, "[Toggle_singlestep] SPSR_EL2      0x%lx\n", READ_SYSREG(SPSR_EL2));
+            gprintk(XENLOG_ERR, "[Toggle_singlestep] MDCR_EL2      0x%lx\n", READ_SYSREG(MDCR_EL2));
+            v->arch.single_step = 1; 
+        
+        }else
+        {
+            gprintk(XENLOG_ERR, "Register for vcpu=%d for domain=%d already set\n",v->vcpu_id,v->domain->domain_id);
+        }
         //gprintk(XENLOG_ERR, "leave_hypervisor_tail with domain=%xp\n", v->domain->domain_id);
 
         //VCPU Single_Step Flag set, set Registers
-        WRITE_SYSREG(READ_SYSREG(MDCR_EL2)| HDCR_TDA|HDCR_TDE, MDCR_EL2);
-        WRITE_SYSREG((READ_SYSREG(SPSR_EL2 )| 0x200000), SPSR_EL2 );
-        WRITE_SYSREG(READ_SYSREG(MDSCR_EL1) | 0x1, MDSCR_EL1);
-
-/*        gprintk(XENLOG_ERR, "[Toggle_singlestep] MDSCR_EL1     0x%lx\n", READ_SYSREG(MDSCR_EL1));
-        gprintk(XENLOG_ERR, "[Toggle_singlestep] SPSR_EL2      0x%lx\n", READ_SYSREG(SPSR_EL2));
-        gprintk(XENLOG_ERR, "[Toggle_singlestep] MDCR_EL2      0x%lx\n", READ_SYSREG(MDCR_EL2)); */
+       
     }
 
     while (1)
