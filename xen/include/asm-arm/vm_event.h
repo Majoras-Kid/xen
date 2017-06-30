@@ -34,11 +34,12 @@ static inline void vm_event_cleanup_domain(struct domain *d)
     memset(&d->monitor, 0, sizeof(d->monitor));
 }
 
-static inline void vm_event_toggle_singlestep(struct domain *d, struct vcpu *v,
-                                              vm_event_response_t *rsp)
-{
+void vm_event_toggle_singlestep(struct domain *d, struct vcpu *v,
+                                vm_event_response_t *rsp);
+//{
     /* Not supported on ARM. */
-}
+    /*TODO: HIER ANPASSEN ALS PROTOTYPE*/
+//}
 
 static inline
 void vm_event_register_write_resume(struct vcpu *v, vm_event_response_t *rsp)

@@ -261,6 +261,7 @@
 #define HSR_EC_INSTR_ABORT_CURR_EL  0x21
 #define HSR_EC_DATA_ABORT_LOWER_EL  0x24
 #define HSR_EC_DATA_ABORT_CURR_EL   0x25
+#define HSR_EC_SOFTSTEP_LOWER_EL    0x32
 #ifdef CONFIG_ARM_64
 #define HSR_EC_BRK                  0x3c
 #endif
@@ -710,6 +711,9 @@ int call_smc(register_t function_id, register_t arg0, register_t arg1,
 void do_trap_hyp_serror(struct cpu_user_regs *regs);
 
 void do_trap_guest_serror(struct cpu_user_regs *regs);
+
+/*Function for Software Step handling*/
+void do_trap_software_step(struct cpu_user_regs *regs);
 
 register_t get_default_hcr_flags(void);
 

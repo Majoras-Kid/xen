@@ -721,6 +721,11 @@ int main(int argc, char *argv[])
                        (req.flags & VM_EVENT_FLAG_VCPU_PAUSED) ? 'p' : 'r',
                        req.altp2m_idx);
 
+                if ( singlestep)
+                {
+                    //TODO: Xen-access erweitern für VM_EVENT_FLAG_TOGGLE_SINGLESTEP
+                }
+                
                 if ( altp2m && req.flags & VM_EVENT_FLAG_ALTERNATE_P2M)
                 {
                     DPRINTF("\tSwitching back to default view!\n");

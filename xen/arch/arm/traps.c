@@ -2825,15 +2825,6 @@ asmlinkage void do_trap_guest_sync(struct cpu_user_regs *regs)
         gprintk(XENLOG_ERR, "MOE = %x\n", READ_SYSREG(DBGDSCREXT));
     }
     */
-    if(hsr.ec > 0x13 && hsr.ec <0x24)
-    {
-        gprintk(XENLOG_ERR, "HSR.EC = 0x%x\n",  hsr.ec );
-    }
-    
-    if(hsr.ec == 0x20)
-    {
-        gprintk(XENLOG_ERR, "Found routed prefetch abort to hyp mode\n");
-    }
     switch (hsr.ec) {
     case HSR_EC_WFI_WFE:
         /*
@@ -2948,7 +2939,18 @@ asmlinkage void do_trap_guest_sync(struct cpu_user_regs *regs)
         perfc_incr(trap_dabt);
         do_trap_data_abort_guest(regs, hsr);
         break;
-
+    /*TODO: change location of SS Case in switch?*/
+    case HSR_EC_SOFTSTEP_LOWER_EL:
+        /*TODO: Check here: is current domain a guest domain?*/
+        if ( current->domain->arch.monitor.singlestep_enabled )
+        {
+            do_trap_software_step(regs);
+        }else
+        {
+            gprintk(XENLOG_ERR, "Found singlestep_enabled but not enabled current->domain->arch.monitor.singlestep_enabled=%x\n",current->domain->arch.monitor.singlestep_enabled);
+        }
+        
+        break;
     default:
         gprintk(XENLOG_WARNING,
                 "Unknown Guest Trap. HSR=0x%x EC=0x%x IL=%x Syndrome=0x%"PRIx32"\n",
@@ -2963,12 +2965,22 @@ asmlinkage void do_trap_hyp_sync(struct cpu_user_regs *regs)
 
     enter_hypervisor_head(regs);
 
+    if(hsr.ec == 0x32 || hsr.ec == 0x33)
+    {
+        gprintk(XENLOG_ERR, "guest_sync Software Step from lower/higher EL found %x\n", hsr.ec);
+    }
+
+
     switch ( hsr.ec )
     {
 #ifdef CONFIG_ARM_64
     case HSR_EC_BRK:
         do_trap_brk(regs, hsr);
         break;
+    case 0b100001:
+        //gprintk(XENLOG_ERR, "Found Hyp_trap with EC = %x\n", hsr.ec);
+        gprintk(XENLOG_ERR, "HSR = %lx\n", READ_SYSREG(ESR_EL2));
+
 #endif
 
     default:
@@ -3004,8 +3016,34 @@ asmlinkage void do_trap_fiq(struct cpu_user_regs *regs)
     gic_interrupt(regs, 1);
 }
 
+asmlinkage void do_trap_software_step(struct cpu_user_regs *regs)
+{
+    /*inform dom0*/
+    //gprintk(XENLOG_ERR, "In Software_step Handler\n");
+}
+
 asmlinkage void leave_hypervisor_tail(void)
 {
+    /*This methode will be called after the 'guest_entry' macro in /arch/arm64/entry.S set guest registers
+    Check single_step_enabled flag in domain struct here and set needed registers
+
+    */
+    struct vcpu *v = current;
+
+    if ( unlikely(v->arch.single_step) )
+    {
+        //gprintk(XENLOG_ERR, "leave_hypervisor_tail with domain=%xp\n", v->domain->domain_id);
+
+        //VCPU Single_Step Flag set, set Registers
+        WRITE_SYSREG(READ_SYSREG(MDCR_EL2)| HDCR_TDA|HDCR_TDE, MDCR_EL2);
+        WRITE_SYSREG((READ_SYSREG(SPSR_EL2 )| 0x200000), SPSR_EL2 );
+        WRITE_SYSREG(READ_SYSREG(MDSCR_EL1) | 0x1, MDSCR_EL1);
+
+/*        gprintk(XENLOG_ERR, "[Toggle_singlestep] MDSCR_EL1     0x%lx\n", READ_SYSREG(MDSCR_EL1));
+        gprintk(XENLOG_ERR, "[Toggle_singlestep] SPSR_EL2      0x%lx\n", READ_SYSREG(SPSR_EL2));
+        gprintk(XENLOG_ERR, "[Toggle_singlestep] MDCR_EL2      0x%lx\n", READ_SYSREG(MDCR_EL2)); */
+    }
+
     while (1)
     {
         local_irq_disable();

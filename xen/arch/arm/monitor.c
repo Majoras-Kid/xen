@@ -28,7 +28,9 @@ int arch_monitor_domctl_event(struct domain *d,
                               struct xen_domctl_monitor_op *mop)
 {
     struct arch_domain *ad = &d->arch;
-    
+    struct vcpu *vcpu_temp;
+    int i = 0;
+
     bool_t requested_status = (XEN_DOMCTL_MONITOR_OP_ENABLE == mop->op);
 
     switch ( mop->event )
@@ -48,6 +50,26 @@ int arch_monitor_domctl_event(struct domain *d,
 
     case XEN_DOMCTL_MONITOR_EVENT_SINGLESTEP:
     {
+        /*Adapted from x8/singlestepping*/
+        
+        bool_t old_status = ad->monitor.singlestep_enabled;
+
+        if ( unlikely(old_status == requested_status) )
+            return -EEXIST;
+        gprintk(XENLOG_ERR, "Setting singlestep enabled to %x\n", requested_status);
+        gprintk(XENLOG_ERR, "Anzahl VCPUs=%d in Domain %d\n", d->domain_id, d->max_vcpus);
+
+        domain_pause(d);
+        ad->monitor.singlestep_enabled = requested_status;
+        domain_unpause(d);
+
+        for (; i < d->max_vcpus; ++i)
+        {
+            vcpu_temp = d->vcpu[i];
+            vcpu_temp->arch.single_step = 1;
+        }
+
+
         //Set Debug to Linked Addres
         //See AARM C3.3.7 Linked comparisons for [...]
         
@@ -66,10 +88,11 @@ int arch_monitor_domctl_event(struct domain *d,
 
         //if ARMv7 or ARMv8
         /*MIDR = HSR_SYSREG(0,0,c0,c15,0)*/
+        /*
         if((READ_SYSREG32( MIDR_EL1) & 0x1111) == 0x1010 || (READ_SYSREG32( MIDR_EL1) &0x1111) == 0x0101)
         {
             gprintk(XENLOG_ERR, "Found ARMv7 for ARMv8 implementation\n");
-           /*
+           
             //Route Exceptions to Hypervisor
             //Set: HDCR_{TDE} + init_traps()
            // WRITE_SYSREG((vaddr_t)hyp_traps_vector, VBAR_EL2);
@@ -133,53 +156,56 @@ int arch_monitor_domctl_event(struct domain *d,
             //gprintk(XENLOG_ERR, "[After] Reading DBGBCR3:   0x%x\n", READ_SYSREG( p14,0,c0,c3,5));
             gprintk(XENLOG_ERR, "[Before] Reading DBGBVR:    0x%x\n", READ_SYSREG(p14,0,c0,c2,4));
             gprintk(XENLOG_ERR, "[After] Reading DBGDSCREXT: 0x%x\n", READ_SYSREG(DBGDSCREXT));
-            */
+            
 
         }else
         {
             gprintk(XENLOG_ERR, "ARMv8 found\n");
         
-            //READ(HSR) ghet nicht
             gprintk(XENLOG_ERR, "[Before] Reading MDSCR_EL1     0x%lx\n", READ_SYSREG(MDSCR_EL1));
+            gprintk(XENLOG_ERR, "[Before] Reading HCR_EL2       0x%lx\n", READ_SYSREG(HCR_EL2));
             gprintk(XENLOG_ERR, "[Before] Reading MDCR_EL2      0x%lx\n", READ_SYSREG(MDCR_EL2));
             gprintk(XENLOG_ERR, "[Before] Reading SPSR_EL2      0x%lx\n", READ_SYSREG(SPSR_EL2));
-
-
-            /* MDSCR_EL1.[SS=0] = 1
-            HSR_SYSREG(2,0,c0,c2,2)
-            */
-            //READ(HSR) ghet nicht
-            WRITE_SYSREG(READ_SYSREG(MDSCR_EL1) | 1, MDSCR_EL1);
-
-
-            /*Routing exceptions
-            */
-            WRITE_SYSREG(READ_SYSREG(MDCR_EL2)|HDCR_TDRA|HDCR_TDOSA|HDCR_TDA|HDCR_TDE, MDCR_EL2);
-
-            /*Set SPSR_EL2.[SS=21] = 1
-            #define HSR_SYSREG(op0,op1,crn,crm,op2) \
-            HSR_SYSREG(3,4,c4,c0,0)
-            */ 
             
-            //READ(HSR) ghet nicht 
-            WRITE_SYSREG((READ_SYSREG(SPSR_EL2 )| 0x200000), SPSR_EL2 );
+            //Reihenfolge und Inhalt genau wie bei kvm
 
+             //Routing exceptions
+           
+            WRITE_SYSREG(READ_SYSREG(MDCR_EL2)|HDCR_TDRA|HDCR_TDOSA | HDCR_TDA|HDCR_TDE, MDCR_EL2);
+            
+
+            //Set SPSR_EL2.[SS=21] = 1
+            //#define HSR_SYSREG(op0,op1,crn,crm,op2) \
+            //HSR_SYSREG(3,4,c4,c0,0)
+            
+            //WRITE_SYSREG((READ_SYSREG(SPSR_EL2 )| 0x200000), SPSR_EL2 );
+
+
+            // MDSCR_EL1.[SS=0] = 1
+            //HSR_SYSREG(2,0,c0,c2,2)
+            
+            WRITE_SYSREG(READ_SYSREG(MDSCR_EL1) | 0x1, MDSCR_EL1);
+
+         
 
             gprintk(XENLOG_ERR, "[After] Reading MDSCR_EL1     0x%lx\n", READ_SYSREG(MDSCR_EL1));
-            gprintk(XENLOG_ERR, "[After] Reading MDCR_EL2      0x%lx\n", READ_SYSREG(MDCR_EL2));
+            gprintk(XENLOG_ERR, "[After] Reading HCR_EL2       0x%lx\n", READ_SYSREG(HCR_EL2));
             gprintk(XENLOG_ERR, "[After] Reading SPSR_EL2      0x%lx\n", READ_SYSREG(SPSR_EL2));
+            gprintk(XENLOG_ERR, "[After] Reading MDCR_EL2      0x%lx\n", READ_SYSREG(MDCR_EL2));
+         
 
             gprintk(XENLOG_ERR, "Executing ERET\n");
-            asm("ERET");
+            //asm("ERET");
 
+            return 0;
         }
         
       
         
 
+*/  
 
-
-         
+        return 0; 
        
     }
     default:

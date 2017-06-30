@@ -42,6 +42,21 @@ void vm_event_set_registers(struct vcpu *v, vm_event_response_t *rsp)
     regs->pc = rsp->data.regs.arm.pc;
 }
 
+void vm_event_toggle_singlestep(struct domain *d, struct vcpu *v,
+                                vm_event_response_t *rsp)
+{
+    gprintk(XENLOG_ERR, "Toggle_singlestep request for ARM64 in /arch/arm/vm_event.c in Domain=%d\n", d->domain_id);
+
+    
+    if ( !(rsp->flags & VM_EVENT_FLAG_TOGGLE_SINGLESTEP) )
+        return;
+    
+    ASSERT(atomic_read(&v->vm_event_pause_count));
+
+    /*toggle vcpu single_step FLAG here*/
+
+    v->arch.single_step = !v->arch.single_step;
+}
 void vm_event_monitor_next_interrupt(struct vcpu *v)
 {
     /* Not supported on ARM. */
