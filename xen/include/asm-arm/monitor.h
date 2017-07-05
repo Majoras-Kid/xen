@@ -59,5 +59,6 @@ static inline uint32_t arch_monitor_get_capabilities(struct domain *d)
 }
 
 int monitor_smc(void);
+int monitor_software_step(void);
 
 #endif /* __ASM_ARM_MONITOR_H__ */

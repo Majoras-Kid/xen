@@ -28,6 +28,7 @@ int arch_monitor_domctl_event(struct domain *d,
                               struct xen_domctl_monitor_op *mop)
 {
     struct arch_domain *ad = &d->arch;
+    //struct vcpu *v;
     //struct vcpu *vcpu_temp;
     //int i = 0;
 
@@ -58,29 +59,31 @@ int arch_monitor_domctl_event(struct domain *d,
             return -EEXIST;
         gprintk(XENLOG_ERR, "Setting singlestep enabled to %x\n", requested_status);
         gprintk(XENLOG_ERR, "Anzahl VCPUs=%d in Domain %d\n", d->domain_id, d->max_vcpus);
+        gprintk(XENLOG_ERR, "Setting singlestep Flag for Domain=%x\n", d->domain_id);
 
         domain_pause(d);
         ad->monitor.singlestep_enabled = requested_status;
         domain_unpause(d);
 
-        /*for (; i < d->max_vcpus; ++i)
+        /* Not necessary because Vcpu flag will be set in leave_hypervisor_tail
+        for_each_vcpu(d, v)
+        {
+            v->arch.single_step = 1;   
+        }
+        */
+         
+        /*   
+        for (; i < d->max_vcpus; ++i)
         {
             vcpu_temp = *(d->vcpu[i]);
             vcpu_temp->arch.single_step = 1;
-        }*/
-
+        }
+        */
 
         //Set Debug to Linked Addres
         //See AARM C3.3.7 Linked comparisons for [...]
         
         //Example on ARM ARM 2051
-
-        gprintk(XENLOG_ERR, "Setup HypTrap Route done\n");
-        //gprintk(XENLOG_ERR, "[Before] Reading HDCR:      0x%x\n", READ_SYSREG( HDCR));
-        //gprintk(XENLOG_ERR, "[Before] Reading DBGBCR2:   0x%x\n", READ_SYSREG( p14,0,c0,c0,5));
-        //gprintk(XENLOG_ERR, "[Before] Reading DBGBCR3:   0x%x\n", READ_SYSREG( p14,0,c0,c3,5));
-        //gprintk(XENLOG_ERR, "[Before] Reading DBGBVR:    0x%x\n", READ_SYSREG( p14,0,c0,c0,4));
-        //gprintk(XENLOG_ERR, "[Before] Reading DBGDSCREXT:0x%x\n", READ_SYSREG(DBGDSCREXT));
 
         //gprintk(XENLOG_ERR, "[Before] Reading ID_DFR0:   0x%x\n", READ_SYSREG( p15,0,c0,c1,2));
         //ID_DFR0 can give hints if ARMv8 or ARMv7 is used (deüending on bits [3,0])
@@ -218,6 +221,15 @@ int arch_monitor_domctl_event(struct domain *d,
     }
 
     return 0;
+}
+
+int monitor_software_step(void)
+{
+    vm_event_request_t req = {
+        .reason = VM_EVENT_REASON_SINGLESTEP
+    };
+    gprintk(XENLOG_ERR, "Current->vmid =%x\n", current->vcpu_id);
+    return monitor_traps(current, 1, &req);
 }
 
 int monitor_smc(void)
