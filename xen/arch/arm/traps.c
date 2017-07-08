@@ -3058,6 +3058,7 @@ asmlinkage void leave_hypervisor_tail(void)
             //WRITE_SYSREG(READ_SYSREG(SPSR_EL2)  | 0x200000, SPSR_EL2 );
             WRITE_SYSREG( READ_SYSREG(DAIF) & ~0x200, DAIF);
             isb();
+            v->arch.single_step = 1;
         }
         
         
@@ -3082,6 +3083,15 @@ asmlinkage void leave_hypervisor_tail(void)
     }else
     {
         //single_step Domain flag not set
+        if( v->arch.single_step )
+        {
+            gprintk(XENLOG_ERR, "Domain flag not set, but vcpu flag is set\n");
+            WRITE_SYSREG(READ_SYSREG(MDSCR_EL1) & ~0x1, MDSCR_EL1);
+            guest_cpu_user_regs()->cpsr = guest_cpu_user_regs()->cpsr & ~0x200000;
+            //WRITE_SYSREG(READ_SYSREG(SPSR_EL2)  | 0x200000, SPSR_EL2 );
+            WRITE_SYSREG( READ_SYSREG(DAIF) & ~0x200, DAIF);
+            v->arch.single_step = 0;
+        }
        
     }
 

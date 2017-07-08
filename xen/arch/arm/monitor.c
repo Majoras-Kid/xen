@@ -228,7 +228,6 @@ int monitor_software_step(void)
     vm_event_request_t req = {
         .reason = VM_EVENT_REASON_SINGLESTEP
     };
-    gprintk(XENLOG_ERR, "Current->vmid =%x\n", current->vcpu_id);
     return monitor_traps(current, 1, &req);
 }
 

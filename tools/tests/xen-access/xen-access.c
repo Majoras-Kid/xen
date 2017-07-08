@@ -776,7 +776,7 @@ int main(int argc, char *argv[])
                 rsp.flags |= VM_EVENT_FLAG_SET_REGISTERS;
                 break;
             case VM_EVENT_REASON_SINGLESTEP:
-                printf("Singlestep: rip=%016"PRIx64", vcpu %d, altp2m %u\n", reg.data.regs.arm.pc,req.vcpu_id,0);
+                printf("Singlestep: rip=%016"PRIx64", vcpu %d, altp2m %u\n", req.data.regs.arm.pc,req.vcpu_id,0);
                        /*req.data.regs.x86.rip,
                        req.vcpu_id,
                        req.altp2m_idx);
