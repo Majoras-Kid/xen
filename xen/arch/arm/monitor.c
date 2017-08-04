@@ -57,9 +57,12 @@ int arch_monitor_domctl_event(struct domain *d,
 
         if ( unlikely(old_status == requested_status) )
             return -EEXIST;
-        gprintk(XENLOG_ERR, "Setting singlestep enabled to %x\n", requested_status);
-        gprintk(XENLOG_ERR, "Anzahl VCPUs=%d in Domain %d\n", d->domain_id, d->max_vcpus);
-        gprintk(XENLOG_ERR, "Setting singlestep Flag for Domain=%x\n", d->domain_id);
+
+
+        gprintk(XENLOG_ERR, "Setting singlestep enabled to          0x%x\n", requested_status);
+        gprintk(XENLOG_ERR, "Anzahl VCPUs=%d in Domain              %d\n", d->domain_id, d->max_vcpus);
+        gprintk(XENLOG_ERR, "Setting singlestep Flag for Domain     0x%x\n", d->domain_id);
+        gprintk(XENLOG_ERR, "First VCPU_ID                          0x%x\n", d->vcpu[0]->vcpu_id);
 
         domain_pause(d);
         ad->monitor.singlestep_enabled = requested_status;

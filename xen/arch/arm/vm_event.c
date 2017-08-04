@@ -25,7 +25,10 @@ void vm_event_fill_regs(vm_event_request_t *req)
 {
     const struct cpu_user_regs *regs = guest_cpu_user_regs();
 
-    req->data.regs.arm.cpsr = regs->cpsr;
+//    req->data.regs.arm.cpsr = regs->cpsr;
+/* TEST */
+    req->data.regs.arm.cpsr = regs->spsr_el1;
+/* TEST END */
     req->data.regs.arm.pc = regs->pc;
     req->data.regs.arm.ttbcr = READ_SYSREG(TCR_EL1);
     req->data.regs.arm.ttbr0 = READ_SYSREG64(TTBR0_EL1);

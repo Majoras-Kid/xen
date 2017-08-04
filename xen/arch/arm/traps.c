@@ -2931,7 +2931,6 @@ asmlinkage void do_trap_guest_sync(struct cpu_user_regs *regs)
 #endif
 
     case HSR_EC_INSTR_ABORT_LOWER_EL:
-        gprintk(XENLOG_ERR, "In case EC = HSR_EC_INSTR_ABORT_LOWER_EL\n");
         perfc_incr(trap_iabt);
         do_trap_instr_abort_guest(regs, hsr);
         break;
@@ -2941,7 +2940,6 @@ asmlinkage void do_trap_guest_sync(struct cpu_user_regs *regs)
         break;
     /*TODO: change location of SS Case in switch?*/
     case HSR_EC_SOFTSTEP_LOWER_EL:
-        /*TODO: Check here: is current domain a guest domain?*/
         do_trap_software_step(regs);
                 
         break;
@@ -3018,6 +3016,7 @@ asmlinkage void do_trap_software_step(struct cpu_user_regs *regs)
 
     if ( current->domain->arch.monitor.singlestep_enabled )
     {
+        //gprintk(XENLOG_ERR, "do_trap_software_step PC =  0x%lx\n",regs->pc);
         rc = monitor_software_step();
     }
 
@@ -3030,7 +3029,7 @@ asmlinkage void do_trap_software_step(struct cpu_user_regs *regs)
         rc = monitor_smc();
 
     if ( rc != 1 )
-        inject_undef_exception(regs, hsr);
+        inject_undef_exception(regs, hsr);N
         */
     //gprintk(XENLOG_ERR, "PC =  0x%lx\n",regs->pc);
     //regs->cpsr = regs->cpsr | 0x200000;
@@ -3040,7 +3039,6 @@ asmlinkage void leave_hypervisor_tail(void)
 {
     /*This methode will be called after the 'guest_entry' macro in /arch/arm64/entry.S set guest registers
     Check single_step_enabled flag in domain struct here and set needed registers
-
     */
     
     struct vcpu *v = current;
@@ -3048,38 +3046,23 @@ asmlinkage void leave_hypervisor_tail(void)
     if ( unlikely(v->domain->arch.monitor.singlestep_enabled ) )
     {
         //setz register falls vcpu ss flag noch nicht aktiv
-       
-        if(!(READ_SYSREG(SPSR_EL2) & 0b1000))
+
+        //if(!(READ_SYSREG(SPSR_EL2) & 0b1000))
+        if(!(guest_cpu_user_regs()->cpsr & 0b1000))    
         {
-            gprintk(XENLOG_ERR, "SPSR_EL2 = %lx\n", READ_SYSREG(SPSR_EL2));
+            //gprintk(XENLOG_ERR, "Domain flag set but vcpu not\n");
+            //gprintk(XENLOG_ERR, "SPSR_EL2 = %lx\n", READ_SYSREG(SPSR_EL2));
             WRITE_SYSREG(READ_SYSREG(MDSCR_EL1) | 0x1 /*| 0x2000*/, MDSCR_EL1);
             WRITE_SYSREG(READ_SYSREG(MDCR_EL2)  | /*HDCR_TDA|*/HDCR_TDE, MDCR_EL2);
             guest_cpu_user_regs()->cpsr = guest_cpu_user_regs()->cpsr | 0x200000;
             //WRITE_SYSREG(READ_SYSREG(SPSR_EL2)  | 0x200000, SPSR_EL2 );
-            WRITE_SYSREG( READ_SYSREG(DAIF) & ~0x200, DAIF);
-            isb();
+            //WRITE_SYSREG( READ_SYSREG(DAIF) & ~0x200, DAIF);
+            //isb();
             v->arch.single_step = 1;
+            
         }
-        
-        
-         //gprintk(XENLOG_ERR, "[Set_singlestep] SPSR_EL2      0x%lx\n", READ_SYSREG(SPSR_EL2));
-        /*
-        if (!(v->arch.single_step ))
-        {
-            gprintk(XENLOG_ERR, "Setting vcpu=%d for domain=%d\n",v->vcpu_id,v->domain->domain_id);
-            
-            glsprintk(XENLOG_ERR, "[Set_singlestep] MDSCR_EL1     0x%lx\n", READ_SYSREG(MDSCR_EL1));
-            gprintk(XENLOG_ERR, "[Set_singlestep] MDCR_EL2      0x%lx\n", READ_SYSREG(MDCR_EL2));
-            gprintk(XENLOG_ERR, "[Set_singlestep] SPSR_EL2      0x%lx\n", READ_SYSREG(SPSR_EL2));
-            
-            v->arch.single_step = 1; 
 
-            
-        }else
-        {
-            //gprintk(XENLOG_ERR, "Register for vcpu=%d for domain=%d already set\n",v->vcpu_id,v->domain->domain_id);
-        } 
-        */    
+          
     }else
     {
         //single_step Domain flag not set
@@ -3089,7 +3072,7 @@ asmlinkage void leave_hypervisor_tail(void)
             WRITE_SYSREG(READ_SYSREG(MDSCR_EL1) & ~0x1, MDSCR_EL1);
             guest_cpu_user_regs()->cpsr = guest_cpu_user_regs()->cpsr & ~0x200000;
             //WRITE_SYSREG(READ_SYSREG(SPSR_EL2)  | 0x200000, SPSR_EL2 );
-            WRITE_SYSREG( READ_SYSREG(DAIF) & ~0x200, DAIF);
+            //WRITE_SYSREG( READ_SYSREG(DAIF) & ~0x200, DAIF);
             v->arch.single_step = 0;
         }
        
